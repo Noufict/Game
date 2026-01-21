@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maze Adventure</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    * {
+      font-family: 'Fredoka', sans-serif;
+    }
+    .maze-cell {
+      transition: all 0.2s ease;
+    }
+    .player {
+      animation: bounce 0.5s ease infinite alternate;
+    }
+    @keyframes bounce {
+      from { transform: scale(1); }
+      to { transform: scale(1.1); }
+    }
+    @keyframes celebrate {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      25% { transform: scale(1.2) rotate(-10deg); }
+      75% { transform: scale(1.2) rotate(10deg); }
+    }
+    .celebrate {
+      animation: celebrate 0.5s ease infinite;
+    }
+    @keyframes confetti {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100px) rotate(720deg); opacity: 0; }
+    }
+    .confetti {
+      animation: confetti 1.5s ease-out forwards;
+    }
+    .arrow-btn {
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .arrow-btn:active {
+      transform: scale(0.95);
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+      50% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.8); }
+    }
+    .goal {
+      animation: pulse-glow 1s ease infinite;
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full">
+  <div id="app" class="h-full w-full overflow-auto flex flex-col items-center justify-center p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"><!-- Confetti Container -->
+   <div id="confetti-container" class="fixed inset-0 pointer-events-none z-50"></div><!-- Main Game Container -->
+   <div class="w-full max-w-lg mx-auto"><!-- Title -->
+    <h1 id="game-title" class="text-3xl md:text-4xl font-bold text-center mb-4 drop-shadow-lg" style="color: #FFD700;">🎮 Maze Adventure 🌟</h1><!-- Instructions -->
+    <p id="instructions" class="text-center text-lg mb-4 px-4" style="color: #FFFFFF;">Help the bunny 🐰 find the carrot 🥕! Use arrow keys or buttons to move.</p><!-- Level & Moves Display -->
+    <div class="flex justify-center gap-6 mb-4">
+     <div class="px-4 py-2 rounded-full font-bold text-lg" style="background-color: #FFD700; color: #4A0E78;">
+      Level: <span id="level-display">1</span>
+     </div>
+     <div class="px-4 py-2 rounded-full font-bold text-lg" style="background-color: #FFFFFF; color: #4A0E78;">
+      Moves: <span id="moves-display">0</span>
+     </div>
+    </div><!-- Maze Container -->
+    <div class="flex justify-center mb-4">
+     <div id="maze-container" class="rounded-2xl p-3 shadow-2xl" style="background-color: #FFFFFF;">
+      <div id="maze" class="grid gap-1"></div>
+     </div>
+    </div><!-- Win Message (Hidden by default) -->
+    <div id="win-message" class="hidden text-center mb-4">
+     <p id="win-text" class="text-2xl font-bold celebrate" style="color: #FFD700;">🎉 Amazing! You found the carrot! 🎉</p><button id="next-level-btn" onclick="nextLevel()" class="mt-3 px-6 py-3 rounded-full font-bold text-xl shadow-lg hover:scale-105 transition-transform" style="background-color: #FFD700; color: #4A0E78;"> Next Level ➡️ </button>
+    </div><!-- Arrow Controls for Touch/Click -->
+    <div class="flex flex-col items-center gap-2"><button onclick="movePlayer(0, -1)" class="arrow-btn w-16 h-16 rounded-xl font-bold text-2xl shadow-lg" style="background-color: #FF6B6B; color: #FFFFFF;"> ⬆️ </button>
+     <div class="flex gap-2"><button onclick="movePlayer(-1, 0)" class="arrow-btn w-16 h-16 rounded-xl font-bold text-2xl shadow-lg" style="background-color: #4ECDC4; color: #FFFFFF;"> ⬅️ </button> <button onclick="movePlayer(0, 1)" class="arrow-btn w-16 h-16 rounded-xl font-bold text-2xl shadow-lg" style="background-color: #45B7D1; color: #FFFFFF;"> ⬇️ </button> <button onclick="movePlayer(1, 0)" class="arrow-btn w-16 h-16 rounded-xl font-bold text-2xl shadow-lg" style="background-color: #96CEB4; color: #FFFFFF;"> ➡️ </button>
+     </div>
+    </div><!-- Reset Button -->
+    <div class="flex justify-center mt-4"><button onclick="resetLevel()" class="px-5 py-2 rounded-full font-bold shadow-lg hover:scale-105 transition-transform" style="background-color: #FF6B6B; color: #FFFFFF;"> 🔄 Start Over </button>
+    </div>
+   </div>
+  </div>
+  <script>
+    // Game State
+    let currentLevel = 0;
+    let playerPos = { x: 1, y: 1 };
+    let goalPos = { x: 0, y: 0 };
+    let moves = 0;
+    let gameWon = false;
+
+    // Maze levels (0 = path, 1 = wall, 2 = start, 3 = goal)
+    const levels = [
+      // Level 1 - Simple
+      [
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 2, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 1],
+        [1, 0, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 3, 1],
+        [1, 1, 1, 1, 1, 1, 1]
+      ],
+      // Level 2 - Medium
+      [
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 2, 0, 1, 0, 0, 1],
+        [1, 0, 0, 1, 0, 0, 1],
+        [1, 0, 1, 1, 0, 1, 1],
+        [1, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 0, 1, 3, 1],
+        [1, 1, 1, 1, 1, 1, 1]
+      ],
+      // Level 3 - Harder
+      [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 2, 0, 0, 1, 0, 0, 0, 1],
+        [1, 1, 1, 0, 1, 0, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 1, 0, 1],
+        [1, 0, 1, 1, 1, 1, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 0, 1, 1],
+        [1, 3, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1]
+      ],
+      // Level 4 - Challenge
+      [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 2, 1, 0, 0, 0, 1, 0, 1],
+        [1, 0, 1, 0, 1, 0, 1, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 1],
+        [1, 0, 1, 1, 1, 1, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 0, 1, 0, 1, 1, 1],
+        [1, 0, 0, 0, 1, 0, 0, 3, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1]
+      ],
+      // Level 5 - Expert
+      [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 2, 0, 0, 0, 1, 0, 0, 1],
+        [1, 1, 1, 1, 0, 1, 0, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 1, 0, 1, 1, 1, 0, 1],
+        [1, 0, 1, 0, 0, 0, 1, 0, 1],
+        [1, 0, 1, 1, 1, 0, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 1, 3, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1]
+      ]
+    ];
+
+    // Default config
+    const defaultConfig = {
+      game_title: "🎮 Maze Adventure 🌟",
+      win_message: "🎉 Amazing! You found the carrot! 🎉",
+      instruction_text: "Help the bunny 🐰 find the carrot 🥕! Use arrow keys or buttons to move.",
+      background_color: "#667eea",
+      surface_color: "#FFFFFF",
+      text_color: "#FFFFFF",
+      primary_action_color: "#FFD700",
+      secondary_action_color: "#4ECDC4"
+    };
+
+    // Initialize maze
+    function initMaze() {
+      const maze = levels[currentLevel];
+      const mazeContainer = document.getElementById('maze');
+      const cellSize = maze.length > 7 ? 32 : 40;
+      
+      mazeContainer.style.gridTemplateColumns = `repeat(${maze[0].length}, ${cellSize}px)`;
+      mazeContainer.innerHTML = '';
+      
+      for (let y = 0; y < maze.length; y++) {
+        for (let x = 0; x < maze[y].length; x++) {
+          const cell = document.createElement('div');
+          cell.className = `maze-cell rounded-md flex items-center justify-center text-xl`;
+          cell.style.width = `${cellSize}px`;
+          cell.style.height = `${cellSize}px`;
+          cell.id = `cell-${x}-${y}`;
+          
+          if (maze[y][x] === 1) {
+            cell.style.backgroundColor = '#4A0E78';
+          } else if (maze[y][x] === 2) {
+            cell.style.backgroundColor = '#E8F5E9';
+            cell.innerHTML = '<span class="player">🐰</span>';
+            playerPos = { x, y };
+          } else if (maze[y][x] === 3) {
+            cell.style.backgroundColor = '#FFF3E0';
+            cell.innerHTML = '🥕';
+            cell.classList.add('goal');
+            goalPos = { x, y };
+          } else {
+            cell.style.backgroundColor = '#E8F5E9';
+          }
+          
+          mazeContainer.appendChild(cell);
+        }
+      }
+      
+      document.getElementById('level-display').textContent = currentLevel + 1;
+      document.getElementById('moves-display').textContent = moves;
+      document.getElementById('win-message').classList.add('hidden');
+      gameWon = false;
+    }
+
+    // Move player
+    function movePlayer(dx, dy) {
+      if (gameWon) return;
+      
+      const maze = levels[currentLevel];
+      const newX = playerPos.x + dx;
+      const newY = playerPos.y + dy;
+      
+      // Check bounds and walls
+      if (newX < 0 || newX >= maze[0].length || newY < 0 || newY >= maze.length) return;
+      if (maze[newY][newX] === 1) return;
+      
+      // Clear old position
+      const oldCell = document.getElementById(`cell-${playerPos.x}-${playerPos.y}`);
+      oldCell.innerHTML = '';
+      
+      // Update position
+      playerPos.x = newX;
+      playerPos.y = newY;
+      moves++;
+      
+      // Update new position
+      const newCell = document.getElementById(`cell-${newX}-${newY}`);
+      newCell.innerHTML = '<span class="player">🐰</span>';
+      
+      document.getElementById('moves-display').textContent = moves;
+      
+      // Check win
+      if (newX === goalPos.x && newY === goalPos.y) {
+        winGame();
+      }
+    }
+
+    // Win game
+    function winGame() {
+      gameWon = true;
+      document.getElementById('win-message').classList.remove('hidden');
+      createConfetti();
+      
+      // Update win text
+      const config = window.elementSdk?.config || defaultConfig;
+      document.getElementById('win-text').textContent = config.win_message || defaultConfig.win_message;
+    }
+
+    // Create confetti
+    function createConfetti() {
+      const container = document.getElementById('confetti-container');
+      container.innerHTML = '';
+      
+      const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FF69B4'];
+      const emojis = ['⭐', '🌟', '✨', '🎉', '🎊', '💫'];
+      
+      for (let i = 0; i < 30; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti absolute text-2xl';
+        confetti.style.left = `${Math.random() * 100}%`;
+        confetti.style.top = '-20px';
+        confetti.style.animationDelay = `${Math.random() * 0.5}s`;
+        confetti.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        container.appendChild(confetti);
+      }
+      
+      setTimeout(() => container.innerHTML = '', 2000);
+    }
+
+    // Next level
+    function nextLevel() {
+      if (currentLevel < levels.length - 1) {
+        currentLevel++;
+        moves = 0;
+        initMaze();
+      } else {
+        // All levels complete - restart
+        currentLevel = 0;
+        moves = 0;
+        initMaze();
+        const winMsg = document.getElementById('win-message');
+        winMsg.classList.remove('hidden');
+        document.getElementById('win-text').textContent = '🏆 You are a Maze Champion! 🏆';
+      }
+    }
+
+    // Reset level
+    function resetLevel() {
+      moves = 0;
+      initMaze();
+    }
+
+    // Keyboard controls
+    document.addEventListener('keydown', (e) => {
+      switch(e.key) {
+        case 'ArrowUp': movePlayer(0, -1); e.preventDefault(); break;
+        case 'ArrowDown': movePlayer(0, 1); e.preventDefault(); break;
+        case 'ArrowLeft': movePlayer(-1, 0); e.preventDefault(); break;
+        case 'ArrowRight': movePlayer(1, 0); e.preventDefault(); break;
+      }
+    });
+
+    // Config change handler
+    async function onConfigChange(config) {
+      const title = config.game_title || defaultConfig.game_title;
+      const instructions = config.instruction_text || defaultConfig.instruction_text;
+      const winMessage = config.win_message || defaultConfig.win_message;
+      const bgColor = config.background_color || defaultConfig.background_color;
+      const surfaceColor = config.surface_color || defaultConfig.surface_color;
+      const textColor = config.text_color || defaultConfig.text_color;
+      const primaryColor = config.primary_action_color || defaultConfig.primary_action_color;
+      const secondaryColor = config.secondary_action_color || defaultConfig.secondary_action_color;
+
+      document.getElementById('game-title').textContent = title;
+      document.getElementById('game-title').style.color = primaryColor;
+      document.getElementById('instructions').textContent = instructions;
+      document.getElementById('instructions').style.color = textColor;
+      document.getElementById('win-text').textContent = winMessage;
+      document.getElementById('win-text').style.color = primaryColor;
+      
+      document.getElementById('app').style.background = `linear-gradient(135deg, ${bgColor} 0%, #764ba2 100%)`;
+      document.getElementById('maze-container').style.backgroundColor = surfaceColor;
+      
+      // Update buttons
+      document.getElementById('next-level-btn').style.backgroundColor = primaryColor;
+    }
+
+    // Map to capabilities
+    function mapToCapabilities(config) {
+      return {
+        recolorables: [
+          {
+            get: () => config.background_color || defaultConfig.background_color,
+            set: (value) => { config.background_color = value; window.elementSdk.setConfig({ background_color: value }); }
+          },
+          {
+            get: () => config.surface_color || defaultConfig.surface_color,
+            set: (value) => { config.surface_color = value; window.elementSdk.setConfig({ surface_color: value }); }
+          },
+          {
+            get: () => config.text_color || defaultConfig.text_color,
+            set: (value) => { config.text_color = value; window.elementSdk.setConfig({ text_color: value }); }
+          },
+          {
+            get: () => config.primary_action_color || defaultConfig.primary_action_color,
+            set: (value) => { config.primary_action_color = value; window.elementSdk.setConfig({ primary_action_color: value }); }
+          },
+          {
+            get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
+            set: (value) => { config.secondary_action_color = value; window.elementSdk.setConfig({ secondary_action_color: value }); }
+          }
+        ],
+        borderables: [],
+        fontEditable: undefined,
+        fontSizeable: undefined
+      };
+    }
+
+    // Map to edit panel values
+    function mapToEditPanelValues(config) {
+      return new Map([
+        ["game_title", config.game_title || defaultConfig.game_title],
+        ["win_message", config.win_message || defaultConfig.win_message],
+        ["instruction_text", config.instruction_text || defaultConfig.instruction_text]
+      ]);
+    }
+
+    // Initialize SDK
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities,
+        mapToEditPanelValues
+      });
+    }
+
+    // Start game
+    initMaze();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c013b4523a415a5',t:'MTc2ODc3MjIyNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
