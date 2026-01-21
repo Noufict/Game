@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typing Race</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    
+    @keyframes sparkle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+    
+    @keyframes carMove {
+      0% { left: 0%; }
+      100% { left: calc(100% - 60px); }
+    }
+    
+    @keyframes celebrate {
+      0% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(-10deg) scale(1.1); }
+      50% { transform: rotate(10deg) scale(1.2); }
+      75% { transform: rotate(-5deg) scale(1.1); }
+      100% { transform: rotate(0deg) scale(1); }
+    }
+    
+    .floating { animation: float 3s ease-in-out infinite; }
+    .bouncing { animation: bounce 0.5s ease-in-out; }
+    .sparkle { animation: sparkle 1s ease-in-out infinite; }
+    .celebrate { animation: celebrate 0.6s ease-in-out; }
+    
+    .word-bubble {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 3px solid #f59e0b;
+      border-radius: 20px;
+      padding: 15px 30px;
+      font-size: 2rem;
+      letter-spacing: 4px;
+      box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3);
+    }
+    
+    .typed-correct {
+      color: #10b981;
+      text-decoration: underline;
+      text-decoration-color: #10b981;
+    }
+    
+    .typed-wrong {
+      color: #ef4444;
+      background-color: #fee2e2;
+      border-radius: 4px;
+    }
+    
+    .road {
+      background: linear-gradient(to bottom, #4b5563 0%, #374151 50%, #4b5563 100%);
+      border-top: 4px dashed #fbbf24;
+      border-bottom: 4px dashed #fbbf24;
+    }
+    
+    .star {
+      display: inline-block;
+      font-size: 1.5rem;
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full">
+  <div id="app" class="h-full w-full overflow-auto" style="background: linear-gradient(180deg, #c7d2fe 0%, #a5b4fc 50%, #818cf8 100%); font-family: 'Fredoka', sans-serif;"><!-- Start Screen -->
+   <div id="startScreen" class="flex flex-col items-center justify-center h-full p-6 text-center">
+    <div class="floating mb-6">
+     <svg width="120" height="80" viewbox="0 0 120 80"><rect x="10" y="30" width="100" height="35" rx="10" fill="#ef4444" /> <rect x="25" y="20" width="50" height="25" rx="5" fill="#fbbf24" /> <circle cx="30" cy="65" r="10" fill="#1f2937" /> <circle cx="30" cy="65" r="5" fill="#6b7280" /> <circle cx="90" cy="65" r="10" fill="#1f2937" /> <circle cx="90" cy="65" r="5" fill="#6b7280" /> <rect x="70" y="35" width="15" height="10" rx="2" fill="#fef3c7" /> <rect x="35" y="25" width="12" height="12" rx="2" fill="#bfdbfe" /> <rect x="52" y="25" width="12" height="12" rx="2" fill="#bfdbfe" />
+     </svg>
+    </div>
+    <h1 id="gameTitle" class="text-4xl md:text-5xl font-bold mb-4" style="color: #312e81; text-shadow: 3px 3px 0px #fbbf24;">🏎️ Typing Race! 🏁</h1>
+    <p class="text-xl mb-8" style="color: #4338ca;">Type the words as fast as you can to win the race!</p>
+    <div class="flex flex-col gap-4 mb-8"><button id="easyBtn" class="px-8 py-4 text-xl font-bold rounded-full transition-all hover:scale-105 active:scale-95" style="background: linear-gradient(135deg, #34d399 0%, #10b981 100%); color: white; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);"> 🌟 Easy Mode </button> <button id="mediumBtn" class="px-8 py-4 text-xl font-bold rounded-full transition-all hover:scale-105 active:scale-95" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);"> ⭐ Medium Mode </button> <button id="hardBtn" class="px-8 py-4 text-xl font-bold rounded-full transition-all hover:scale-105 active:scale-95" style="background: linear-gradient(135deg, #f87171 0%, #ef4444 100%); color: white; box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);"> 🔥 Challenge Mode </button>
+    </div>
+    <div class="p-4 rounded-2xl" style="background: rgba(255,255,255,0.5);">
+     <p class="text-lg" style="color: #4338ca;">💡 <strong>Tip:</strong> Keep your fingers on the home row keys!</p>
+    </div>
+   </div><!-- Game Screen -->
+   <div id="gameScreen" class="hidden flex flex-col h-full p-4"><!-- Stats Bar -->
+    <div class="flex flex-wrap justify-between items-center gap-4 mb-4 p-4 rounded-2xl" style="background: rgba(255,255,255,0.8);">
+     <div class="flex items-center gap-2"><span class="text-2xl">⏱️</span> <span id="timer" class="text-2xl font-bold" style="color: #4338ca;">60</span>
+     </div>
+     <div class="flex items-center gap-2"><span class="text-2xl">🎯</span> <span id="score" class="text-2xl font-bold" style="color: #10b981;">0</span>
+     </div>
+     <div class="flex items-center gap-2"><span class="text-2xl">🔥</span> <span id="streak" class="text-2xl font-bold" style="color: #f59e0b;">0</span>
+     </div>
+     <div class="flex items-center gap-2"><span class="text-2xl">⚡</span> <span id="wpm" class="text-2xl font-bold" style="color: #8b5cf6;">0 WPM</span>
+     </div>
+    </div><!-- Race Track -->
+    <div class="relative mb-6 p-2 rounded-2xl" style="background: #65a30d;">
+     <div class="road relative h-16 rounded-xl overflow-hidden">
+      <div class="absolute top-1/2 left-0 right-0 border-t-2 border-dashed border-white opacity-50"></div>
+      <div id="car" class="absolute top-1/2 transform -translate-y-1/2" style="left: 0%; transition: left 0.3s ease-out;">
+       <svg width="50" height="35" viewbox="0 0 50 35"><rect x="5" y="12" width="40" height="16" rx="5" fill="#ef4444" /> <rect x="12" y="6" width="22" height="12" rx="3" fill="#fbbf24" /> <circle cx="14" cy="28" r="5" fill="#1f2937" /> <circle cx="36" cy="28" r="5" fill="#1f2937" /> <rect x="18" y="9" width="6" height="6" rx="1" fill="#bfdbfe" /> <rect x="26" y="9" width="6" height="6" rx="1" fill="#bfdbfe" />
+       </svg>
+      </div>
+      <div class="absolute right-2 top-1/2 transform -translate-y-1/2 text-3xl">
+       🏁
+      </div>
+     </div>
+    </div><!-- Word Display -->
+    <div class="flex-1 flex flex-col items-center justify-center">
+     <div id="wordDisplay" class="word-bubble mb-6 text-center"><span id="wordText" style="color: #78350f; font-weight: 600;">cat</span>
+     </div><input type="text" id="typeInput" class="w-full max-w-md text-2xl text-center p-4 rounded-2xl border-4 outline-none transition-all" style="border-color: #a5b4fc; background: white; color: #1f2937; font-family: 'Fredoka', monospace;" placeholder="Type here..." autocomplete="off" autocapitalize="off" spellcheck="false">
+     <div id="feedback" class="mt-4 text-2xl font-bold h-10" style="color: #10b981;"></div>
+    </div><!-- Encouragement -->
+    <div id="encouragement" class="text-center py-4"><span id="encouragementText" class="text-xl" style="color: #4338ca;">You've got this! 💪</span>
+    </div>
+   </div><!-- Results Screen -->
+   <div id="resultsScreen" class="hidden flex flex-col items-center justify-center h-full p-6 text-center">
+    <div class="celebrate mb-6 text-6xl">
+     🏆
+    </div>
+    <h2 class="text-4xl font-bold mb-6" style="color: #312e81;">Race Complete!</h2>
+    <div class="p-6 rounded-3xl mb-6 w-full max-w-sm" style="background: rgba(255,255,255,0.9);">
+     <div class="grid grid-cols-2 gap-4 text-left">
+      <div class="text-lg" style="color: #6b7280;">
+       Words Typed:
+      </div>
+      <div id="finalWords" class="text-xl font-bold" style="color: #10b981;">
+       0
+      </div>
+      <div class="text-lg" style="color: #6b7280;">
+       Speed:
+      </div>
+      <div id="finalWpm" class="text-xl font-bold" style="color: #8b5cf6;">
+       0 WPM
+      </div>
+      <div class="text-lg" style="color: #6b7280;">
+       Best Streak:
+      </div>
+      <div id="finalStreak" class="text-xl font-bold" style="color: #f59e0b;">
+       0
+      </div>
+      <div class="text-lg" style="color: #6b7280;">
+       Accuracy:
+      </div>
+      <div id="finalAccuracy" class="text-xl font-bold" style="color: #ef4444;">
+       0%
+      </div>
+     </div>
+    </div>
+    <div id="starRating" class="flex gap-2 mb-6 text-4xl"></div>
+    <p id="resultMessage" class="text-xl mb-6" style="color: #4338ca;"></p><button id="playAgainBtn" class="px-8 py-4 text-xl font-bold rounded-full transition-all hover:scale-105 active:scale-95" style="background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%); color: white; box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);"> 🔄 Play Again! </button>
+   </div>
+  </div>
+  <script>
+    const defaultConfig = {
+      game_title: "🏎️ Typing Race! 🏁",
+      encouragement_text: "You've got this! 💪",
+      primary_color: "#6366f1",
+      secondary_color: "#fbbf24",
+      text_color: "#312e81",
+      accent_color: "#10b981",
+      background_color: "#a5b4fc",
+      font_family: "Fredoka",
+      font_size: 16
+    };
+    
+    let config = { ...defaultConfig };
+    
+    // Word lists by difficulty
+    const wordLists = {
+      easy: ["cat", "dog", "sun", "hat", "run", "big", "red", "cup", "box", "fun", "hop", "sit", "pen", "map", "log", "bat", "net", "pig", "rug", "van"],
+      medium: ["apple", "happy", "sunny", "beach", "cloud", "green", "water", "smile", "dance", "plant", "bread", "train", "sleep", "house", "pizza", "candy", "tiger", "music", "river", "chair"],
+      hard: ["rainbow", "butterfly", "adventure", "beautiful", "dinosaur", "elephant", "fantastic", "giraffe", "homework", "important", "jellyfish", "kangaroo", "lightning", "mountain", "notebook", "octopus", "parachute", "question", "rectangle", "submarine"]
+    };
+    
+    let currentWords = [];
+    let currentWordIndex = 0;
+    let score = 0;
+    let streak = 0;
+    let bestStreak = 0;
+    let timeLeft = 60;
+    let gameTimer = null;
+    let totalAttempts = 0;
+    let correctAttempts = 0;
+    let startTime = null;
+    
+    // DOM Elements
+    const startScreen = document.getElementById("startScreen");
+    const gameScreen = document.getElementById("gameScreen");
+    const resultsScreen = document.getElementById("resultsScreen");
+    const wordText = document.getElementById("wordText");
+    const typeInput = document.getElementById("typeInput");
+    const timerDisplay = document.getElementById("timer");
+    const scoreDisplay = document.getElementById("score");
+    const streakDisplay = document.getElementById("streak");
+    const wpmDisplay = document.getElementById("wpm");
+    const feedback = document.getElementById("feedback");
+    const car = document.getElementById("car");
+    const gameTitleEl = document.getElementById("gameTitle");
+    const encouragementTextEl = document.getElementById("encouragementText");
+    
+    // Game functions
+    function shuffleArray(array) {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+    
+    function startGame(difficulty) {
+      currentWords = shuffleArray(wordLists[difficulty]);
+      currentWordIndex = 0;
+      score = 0;
+      streak = 0;
+      bestStreak = 0;
+      timeLeft = 60;
+      totalAttempts = 0;
+      correctAttempts = 0;
+      startTime = Date.now();
+      
+      updateDisplays();
+      showWord();
+      
+      startScreen.classList.add("hidden");
+      resultsScreen.classList.add("hidden");
+      gameScreen.classList.remove("hidden");
+      
+      typeInput.value = "";
+      typeInput.focus();
+      
+      car.style.left = "0%";
+      
+      gameTimer = setInterval(() => {
+        timeLeft--;
+        timerDisplay.textContent = timeLeft;
+        
+        if (timeLeft <= 10) {
+          timerDisplay.style.color = "#ef4444";
+        }
+        
+        if (timeLeft <= 0) {
+          endGame();
+        }
+      }, 1000);
+    }
+    
+    function showWord() {
+      if (currentWordIndex >= currentWords.length) {
+        currentWords = shuffleArray(currentWords);
+        currentWordIndex = 0;
+      }
+      
+      const word = currentWords[currentWordIndex];
+      wordText.innerHTML = word;
+      typeInput.value = "";
+    }
+    
+    function updateDisplays() {
+      scoreDisplay.textContent = score;
+      streakDisplay.textContent = streak;
+      timerDisplay.textContent = timeLeft;
+      
+      const elapsedMinutes = (Date.now() - (startTime || Date.now())) / 60000;
+      const wpm = elapsedMinutes > 0 ? Math.round(correctAttempts / elapsedMinutes) : 0;
+      wpmDisplay.textContent = `${wpm} WPM`;
+      
+      // Update car position
+      const progress = Math.min((score / 20) * 100, 100);
+      car.style.left = `calc(${progress}% - ${progress * 0.5}px)`;
+    }
+    
+    function showFeedback(message, isPositive) {
+      feedback.textContent = message;
+      feedback.style.color = isPositive ? "#10b981" : "#ef4444";
+      feedback.classList.add("bouncing");
+      
+      setTimeout(() => {
+        feedback.classList.remove("bouncing");
+      }, 500);
+      
+      setTimeout(() => {
+        feedback.textContent = "";
+      }, 1500);
+    }
+    
+    function checkWord() {
+      const typed = typeInput.value.toLowerCase().trim();
+      const target = currentWords[currentWordIndex].toLowerCase();
+      
+      // Live feedback - show correct/incorrect letters
+      let displayHtml = "";
+      for (let i = 0; i < target.length; i++) {
+        if (i < typed.length) {
+          if (typed[i] === target[i]) {
+            displayHtml += `<span class="typed-correct">${target[i]}</span>`;
+          } else {
+            displayHtml += `<span class="typed-wrong">${target[i]}</span>`;
+          }
+        } else {
+          displayHtml += target[i];
+        }
+      }
+      wordText.innerHTML = displayHtml;
+      
+      // Check if word is complete
+      if (typed === target) {
+        totalAttempts++;
+        correctAttempts++;
+        score++;
+        streak++;
+        
+        if (streak > bestStreak) {
+          bestStreak = streak;
+        }
+        
+        const encouragements = ["Awesome! 🌟", "Great job! ⭐", "Super! 🎉", "Fantastic! 🚀", "Amazing! 💫", "Wow! 🔥", "Perfect! ✨"];
+        showFeedback(encouragements[Math.floor(Math.random() * encouragements.length)], true);
+        
+        currentWordIndex++;
+        updateDisplays();
+        showWord();
+      }
+    }
+    
+    function endGame() {
+      clearInterval(gameTimer);
+      
+      gameScreen.classList.add("hidden");
+      resultsScreen.classList.remove("hidden");
+      
+      const elapsedMinutes = (Date.now() - startTime) / 60000;
+      const finalWpm = Math.round(correctAttempts / elapsedMinutes);
+      const accuracy = totalAttempts > 0 ? Math.round((correctAttempts / totalAttempts) * 100) : 0;
+      
+      document.getElementById("finalWords").textContent = score;
+      document.getElementById("finalWpm").textContent = `${finalWpm} WPM`;
+      document.getElementById("finalStreak").textContent = bestStreak;
+      document.getElementById("finalAccuracy").textContent = `${accuracy}%`;
+      
+      // Star rating
+      let stars = 0;
+      if (score >= 5) stars = 1;
+      if (score >= 10) stars = 2;
+      if (score >= 15) stars = 3;
+      if (score >= 20) stars = 4;
+      if (score >= 25) stars = 5;
+      
+      const starRating = document.getElementById("starRating");
+      starRating.innerHTML = "";
+      for (let i = 0; i < 5; i++) {
+        const star = document.createElement("span");
+        star.className = "star";
+        star.textContent = i < stars ? "⭐" : "☆";
+        star.style.animationDelay = `${i * 0.1}s`;
+        if (i < stars) star.classList.add("sparkle");
+        starRating.appendChild(star);
+      }
+      
+      // Result message
+      const messages = [
+        "Keep practicing, you'll get faster! 💪",
+        "Good effort! Try again to beat your score! 🎯",
+        "Nice work! You're getting better! 🌟",
+        "Great job, speedy fingers! 🏃",
+        "Wow, you're a typing star! ⭐",
+        "Incredible! You're a typing champion! 🏆"
+      ];
+      document.getElementById("resultMessage").textContent = messages[stars] || messages[0];
+    }
+    
+    // Event listeners
+    document.getElementById("easyBtn").addEventListener("click", () => startGame("easy"));
+    document.getElementById("mediumBtn").addEventListener("click", () => startGame("medium"));
+    document.getElementById("hardBtn").addEventListener("click", () => startGame("hard"));
+    document.getElementById("playAgainBtn").addEventListener("click", () => {
+      resultsScreen.classList.add("hidden");
+      startScreen.classList.remove("hidden");
+    });
+    
+    typeInput.addEventListener("input", checkWord);
+    
+    // Prevent form submission
+    typeInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+      }
+    });
+    
+    // Element SDK
+    async function onConfigChange(cfg) {
+      const font = cfg.font_family || defaultConfig.font_family;
+      const baseSize = cfg.font_size || defaultConfig.font_size;
+      
+      document.body.style.fontFamily = `${font}, sans-serif`;
+      gameTitleEl.textContent = cfg.game_title || defaultConfig.game_title;
+      encouragementTextEl.textContent = cfg.encouragement_text || defaultConfig.encouragement_text;
+    }
+    
+    function mapToCapabilities(cfg) {
+      return {
+        recolorables: [
+          {
+            get: () => cfg.background_color || defaultConfig.background_color,
+            set: (v) => { cfg.background_color = v; window.elementSdk.setConfig({ background_color: v }); }
+          },
+          {
+            get: () => cfg.primary_color || defaultConfig.primary_color,
+            set: (v) => { cfg.primary_color = v; window.elementSdk.setConfig({ primary_color: v }); }
+          },
+          {
+            get: () => cfg.text_color || defaultConfig.text_color,
+            set: (v) => { cfg.text_color = v; window.elementSdk.setConfig({ text_color: v }); }
+          },
+          {
+            get: () => cfg.accent_color || defaultConfig.accent_color,
+            set: (v) => { cfg.accent_color = v; window.elementSdk.setConfig({ accent_color: v }); }
+          },
+          {
+            get: () => cfg.secondary_color || defaultConfig.secondary_color,
+            set: (v) => { cfg.secondary_color = v; window.elementSdk.setConfig({ secondary_color: v }); }
+          }
+        ],
+        borderables: [],
+        fontEditable: {
+          get: () => cfg.font_family || defaultConfig.font_family,
+          set: (v) => { cfg.font_family = v; window.elementSdk.setConfig({ font_family: v }); }
+        },
+        fontSizeable: {
+          get: () => cfg.font_size || defaultConfig.font_size,
+          set: (v) => { cfg.font_size = v; window.elementSdk.setConfig({ font_size: v }); }
+        }
+      };
+    }
+    
+    function mapToEditPanelValues(cfg) {
+      return new Map([
+        ["game_title", cfg.game_title || defaultConfig.game_title],
+        ["encouragement_text", cfg.encouragement_text || defaultConfig.encouragement_text]
+      ]);
+    }
+    
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities,
+        mapToEditPanelValues
+      });
+    }
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c04c804125ccdf8',t:'MTc2ODgwOTQ0Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
